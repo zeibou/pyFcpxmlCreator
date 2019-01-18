@@ -1,0 +1,3 @@
+[submodule "pyHiLightExtractor"]
+	path = pyHiLightExtractor
+	url = https://github.com/zeibou/pyHiLightExtractor.git
