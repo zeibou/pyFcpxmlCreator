@@ -19,10 +19,10 @@ def add_mpeg_asset(root, filepath):
     return asset_id
 
 
-def build_title_element(title_asset_id, text):
+def build_title_element(title_asset_id, text, offset):
     title_elt = ET.Element("title")
-    title_elt.set("duration", "100600/6000s")
-    title_elt.set("offset", "21597900/6000s")
+    title_elt.set("duration", "5s")
+    title_elt.set("offset", offset)
     title_elt.set("start", "21605200/6000s")
     #offset="21597900/6000s" ref="r2" duration="59900/6000s" start="21605200/6000s"
     title_elt.set("lane", "1")
@@ -75,16 +75,18 @@ def add_all_mpeg_assets(root, folder, assets):
             assets[h.path] = add_mpeg_asset(root, os.path.join(folder, h.path))
     return assets
 
-def add_all_clips(spine, folder, assets, date):
+def add_all_clips(spine, folder, assets, date, timeSeconds):
     for i, h in enumerate(MultiFilesReader.parse_directory(folder, endswith=".mp4")):
         clip = ET.Element("asset-clip")
         clip.set("name", get_asset_name(h.path))
         clip.set("ref", assets[h.path])
-        clip.set("start", f"{h.local_time.seconds - 10}s")
-        clip.set("duration", "10s")
+        start = f"{h.local_time.seconds - timeSeconds}s"
+        clip.set("start", start)
+        clip.set("duration", f"{timeSeconds}s")
         if i == 0:
             d = datetime.datetime.strptime(date, "%Y-%m-%d")
-            clip.append(build_title_element("r2", d.strftime("%B %d, %Y")))
+            start = f"{h.local_time.seconds - timeSeconds + 3}s"
+            clip.append(build_title_element("r2", d.strftime("%B %d, %Y"), start))
         spine.append(clip)
 
 if __name__ == '__main__':
@@ -97,7 +99,7 @@ if __name__ == '__main__':
     add_all_mpeg_assets(tree.getroot(), folder, assets)
 
     spine = tree.getroot().find("library").find("event").find("project").find("sequence").find("spine")
-    add_all_clips(spine, folder, assets, date)
+    add_all_clips(spine, folder, assets, date, 10)
     #<asset-clip name="GH030065" ref="r5" duration="20s" start="10s" format="r3">
 
     for a in assets: print(a, assets[a])
