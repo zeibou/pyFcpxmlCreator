@@ -1,7 +1,7 @@
 
 import xml.etree.ElementTree as ET
 import os
-import MultiFilesReader
+from pyHiLightExtractor import MultiFilesReader
 import datetime
 
 
