@@ -19,6 +19,13 @@ class AssetDescriptor:
     id : str
     videoDesc : VideoDescriptor
 
+@dataclass
+class ClipDescriptor:
+    name : str
+    ref : str
+    start : int
+    duration : int
+
 def add_mpeg_asset(root, video_desc):
     res = root.find("resources")
     nb_res = len(res)
@@ -84,38 +91,58 @@ def open_template(template_xml_file):
     return ET.parse(template_xml_file)
 
 def add_all_mpeg_assets(root, folder, assets):
+    print("Loading videos...")
     for h in MultiFilesReader.get_all_videos(folder, endswith=".mp4"):
         if not h.name in assets:
             assets[h.name] = add_mpeg_asset(root, h)
+    for a in assets: print(a, assets[a])
     return assets
 
-def add_all_clips(spine, folder, assets, title_text, timeSeconds):
-    for i, h in enumerate(detect_multi_clicks(MultiFilesReader.get_all_hilights(folder, endswith=".mp4"), nb_seconds_interval = 2)):
-        clip = add_clip(spine, assets, h, 10, 0)
+def add_all_clips(spine, folder, assets, title_text):
+    clip_descriptions = []
+    for h in detect_multi_clicks(MultiFilesReader.get_all_hilights(folder, endswith=".mp4"), nb_seconds_interval = 2):
+        hilight, duration, end_offset = h.hilight, *get_offset_bounds(h.nb_clicks)
+        for clip in compute_clips(assets, hilight, duration, end_offset):
+            clip_descriptions.append(clip)
+
+    for i, clip_desc in enumerate(merge_clips(clip_descriptions)):
+        clip = create_clip(clip_desc)
+        spine.append(clip)
 
         # add title
         if i == 0:
-            start = f"{h.local_time.seconds - timeSeconds + 3}s"
+            start = f"{clip_desc.start + 3}s"
             clip.append(build_title_element("r2", title_text, start))
 
+def get_offset_bounds(hilight_click_number):
+    return (10 * hilight_click_number, 1)
 
-def add_clip(spine, assets, hilight, duration_seconds, end_offset_seconds):
-    clip = ET.Element("asset-clip")
-    clip.set("name", get_asset_name(hilight.name))
-    clip.set("ref", assets[hilight.name].id)
+
+def merge_clips(clips): # list of ClipDescriptor
+    # todo
+    return clips
+
+def compute_clips(assets, hilight, duration_seconds, end_offset_seconds):
     start_seconds = hilight.local_time.seconds - duration_seconds - end_offset_seconds
     if start_seconds >= 0:
-        clip.set("start", f"{start_seconds}s")
-        clip.set("duration", f"{duration_seconds}s")
-        spine.append(clip)
+        yield ClipDescriptor(hilight.name, assets[hilight.name].id, start_seconds, duration_seconds)
     else:
+        # if hilight is early on a video, we need to insert the end of the previous video
         # adding end of the first clip
-        # todo if hilight is early on a video, we need to insert the end of the previous video
+        previous = assets[hilight.name].videoDesc.previous_name
+        if previous:
+            previous_video_duration = assets[previous].videoDesc.total_time
+            yield ClipDescriptor(previous, assets[previous].id, previous_video_duration + start_seconds, -start_seconds)
 
         # adding beginning of the second clip
-        clip.set("start", "0s")
-        clip.set("duration", f"{duration_seconds + start_seconds}s")
-        spine.append(clip)
+        yield ClipDescriptor(hilight.name, assets[hilight.name].id, 0, duration_seconds + start_seconds)
+
+def create_clip(clip_desc):
+    clip = ET.Element("asset-clip")
+    clip.set("name", get_asset_name(clip_desc.name))
+    clip.set("ref", clip_desc.ref)
+    clip.set("start", f"{clip_desc.start}s")
+    clip.set("duration", f"{clip_desc.duration}s")
     return clip
 
 
@@ -124,7 +151,7 @@ def detect_multi_clicks(hilights, nb_seconds_interval=2):
     # output detected multi clicks + discarded extra clicks
     # return filtered hilights with number of clicks associated (HilightMultiClick)
     for h in hilights:
-        yield h
+        yield HilightMultiClick(h, 1)
 
 
 
@@ -133,15 +160,14 @@ if __name__ == '__main__':
     d = datetime.datetime.strptime(date, "%Y-%m-%d")
     title_text = d.strftime("%B %d, %Y")
 
-    template_path = "/Users/nicolas.seibert/Documents/foot/2019-01-14/template.fcpxml"
+    template_path = "/Users/nicolas.seibert/Documents/Projects/pyFcpxmlCreator/template.fcpxml"
     tree = open_template(template_path)
     assets = dict()
     folder = f"/Users/nicolas.seibert/Documents/foot/{date}/"
     add_all_mpeg_assets(tree.getroot(), folder, assets)
 
     spine = tree.getroot().find("library").find("event").find("project").find("sequence").find("spine")
-    add_all_clips(spine, folder, assets, title_text, 10)
+    add_all_clips(spine, folder, assets, title_text)
     #<asset-clip name="GH030065" ref="r5" duration="20s" start="10s" format="r3">
 
-    for a in assets: print(a, assets[a])
-    tree.write("/Users/nicolas.seibert/Documents/foot/2019-01-14/2019-01-14-autogen.fcpxml")
+    tree.write(f"/Users/nicolas.seibert/Documents/foot/{date}/autogen.fcpxml")
