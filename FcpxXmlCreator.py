@@ -8,6 +8,7 @@ import datetime
 from dataclasses import dataclass
 from datetime import timedelta
 
+fps = 60
 
 @dataclass
 class HilightMultiClick:
@@ -23,8 +24,8 @@ class AssetDescriptor:
 class ClipDescriptor:
     name : str
     ref : str
-    start : int
-    duration : int
+    start : float
+    duration : float
 
 def add_mpeg_asset(root, video_desc):
     res = root.find("resources")
@@ -111,7 +112,7 @@ def add_all_clips(spine, folder, assets, title_text):
 
         # add title
         if i == 0:
-            start = f"{clip_desc.start + 3}s"
+            start = f"{int(clip_desc.start) + 3}s"
             clip.append(build_title_element("r2", title_text, start))
 
 def get_offset_bounds(hilight_click_number):
@@ -123,7 +124,7 @@ def merge_clips(clips): # list of ClipDescriptor
     return clips
 
 def compute_clips(assets, hilight, duration_seconds, end_offset_seconds):
-    start_seconds = hilight.local_time.seconds - duration_seconds - end_offset_seconds
+    start_seconds = hilight.local_time.total_seconds() - duration_seconds - end_offset_seconds
     if start_seconds >= 0:
         yield ClipDescriptor(hilight.name, assets[hilight.name].id, start_seconds, duration_seconds)
     else:
@@ -138,11 +139,12 @@ def compute_clips(assets, hilight, duration_seconds, end_offset_seconds):
         yield ClipDescriptor(hilight.name, assets[hilight.name].id, 0, duration_seconds + start_seconds)
 
 def create_clip(clip_desc):
+    print(clip_desc)
     clip = ET.Element("asset-clip")
     clip.set("name", get_asset_name(clip_desc.name))
     clip.set("ref", clip_desc.ref)
-    clip.set("start", f"{clip_desc.start}s")
-    clip.set("duration", f"{clip_desc.duration}s")
+    clip.set("start", f"{int(clip_desc.start * fps)*100}/{fps}00s")
+    clip.set("duration", f"{int(clip_desc.duration * fps)*100}/{fps}00s")
     return clip
 
 
