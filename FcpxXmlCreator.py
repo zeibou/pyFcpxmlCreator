@@ -6,9 +6,10 @@ from pyHiLightExtractor.MultiFilesReader import HiLightDescriptor
 from pyHiLightExtractor.MultiFilesReader import VideoDescriptor
 import datetime
 from dataclasses import dataclass
-from datetime import timedelta
+from typing import List
 
 fps = 60
+verbose = False
 
 @dataclass
 class HilightMultiClick:
@@ -92,11 +93,12 @@ def open_template(template_xml_file):
     return ET.parse(template_xml_file)
 
 def add_all_mpeg_assets(root, folder, assets):
-    print("Loading videos...")
+    if verbose: print("Loading videos...")
     for h in MultiFilesReader.get_all_videos(folder, endswith=".mp4"):
         if not h.name in assets:
             assets[h.name] = add_mpeg_asset(root, h)
-    for a in assets: print(a, assets[a])
+    if verbose:
+        for a in assets: print(a, assets[a])
     return assets
 
 def add_all_clips(spine, folder, assets, title_text):
@@ -119,7 +121,7 @@ def get_offset_bounds(hilight_click_number):
     return (10 * hilight_click_number, 1)
 
 
-def merge_clips(clips): # list of ClipDescriptor
+def merge_clips(clips : List[ClipDescriptor]):
     # todo
     return clips
 
@@ -139,7 +141,7 @@ def compute_clips(assets, hilight, duration_seconds, end_offset_seconds):
         yield ClipDescriptor(hilight.name, assets[hilight.name].id, 0, duration_seconds + start_seconds)
 
 def create_clip(clip_desc):
-    print(clip_desc)
+    if verbose: print(f'Adding Clip: {clip_desc}')
     clip = ET.Element("asset-clip")
     clip.set("name", get_asset_name(clip_desc.name))
     clip.set("ref", clip_desc.ref)
@@ -148,7 +150,7 @@ def create_clip(clip_desc):
     return clip
 
 
-def detect_multi_clicks(hilights, nb_seconds_interval=2):
+def detect_multi_clicks(hilights : List[HiLightDescriptor], nb_seconds_interval=2):
     # todo loop reverse to keep first click of multi clicks
     # output detected multi clicks + discarded extra clicks
     # return filtered hilights with number of clicks associated (HilightMultiClick)
@@ -158,6 +160,7 @@ def detect_multi_clicks(hilights, nb_seconds_interval=2):
 
 
 if __name__ == '__main__':
+    verbose = True
     date = "2019-01-14"
     d = datetime.datetime.strptime(date, "%Y-%m-%d")
     title_text = d.strftime("%B %d, %Y")
@@ -170,6 +173,5 @@ if __name__ == '__main__':
 
     spine = tree.getroot().find("library").find("event").find("project").find("sequence").find("spine")
     add_all_clips(spine, folder, assets, title_text)
-    #<asset-clip name="GH030065" ref="r5" duration="20s" start="10s" format="r3">
 
     tree.write(f"/Users/nicolas.seibert/Documents/foot/{date}/autogen.fcpxml")
