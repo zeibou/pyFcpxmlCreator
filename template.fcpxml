@@ -10,8 +10,7 @@
         <event name="2019" uid="33F23C04-2134-43FA-8D20-5DA78B1039C5">
             <project name="2019-01-14">
                 <sequence format="r1" tcStart="0s" duration="59900/6000s" tcFormat="NDF" audioLayout="stereo" audioRate="48k">
-                    <spine>
-                    </spine>
+                    <spine />
                 </sequence>
             </project>
         </event>
